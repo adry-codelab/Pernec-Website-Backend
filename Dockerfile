@@ -1,28 +1,35 @@
-# Use official PHP image with required extensions
+
+# Multi-stage Dockerfile for Laravel (PHP-FPM + Nginx)
+
+# Build stage: Composer dependencies
+FROM composer:2.7 as vendor
+WORKDIR /app
+COPY . .
+RUN composer install --no-dev --optimize-autoloader
+
+# Production stage: PHP-FPM + Nginx
 FROM php:8.2-fpm
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y libpq-dev git unzip \
+    && apt-get install -y libpq-dev git unzip nginx supervisor \
     && docker-php-ext-install pdo pdo_pgsql
 
-# Install Composer
-COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
-
-# Set working directory
+# Copy app files and vendor from build stage
 WORKDIR /var/www/html
-
-# Copy application files
-COPY . .
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+COPY --from=vendor /app .
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Copy Nginx config
+COPY ./docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copy Supervisor config
+COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 # Expose port 10000 for Render
 EXPOSE 10000
 
-# Start the Laravel server with migration and seeding on port 10000
-CMD php artisan migrate --seed --force && php artisan serve --host 0.0.0.0 --port 10000
+# Start Supervisor (runs both PHP-FPM and Nginx)
+CMD ["/usr/bin/supervisord"]
