@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: pernec-website-backend
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: FRONTEND_URL
+        value: https://pernec-web.netlify.app
+      # Add your DB credentials and APP_KEY in the Render dashboard or here
